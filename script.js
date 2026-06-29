@@ -1,12 +1,15 @@
 // ── Item list ─────────────────────────────────────────────────────────────────
-// To load from CSV instead, set USE_CSV = true and place items.csv alongside this file on a web server. CSV format (no header): name,price,maxQty
-// Leave maxQty blank for no limit, e.g.: name,price,
-
+// To load from CSV instead, set USE_CSV = true and place items.csv alongside
+// this file on a web server.
+// CSV format (no header row): name,price,maxQty,category
+//   - Leave maxQty blank for no limit
+//   - Leave category blank for no category (shown at top of dropdown)
+//   - Category can be any text, e.g.: Coffee,3.50,10,Hot Drinks
 const USE_CSV = true;
 const CSV_FILE = 'items.csv';
 
 const FALLBACK_ITEMS = [
-  { name: 'Coin', price: 1,},
+  { name: 'Coin',price: 1,maxQty: null,category: null},
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -14,13 +17,19 @@ let catalogItems = [];
 let lines = [];
 
 function parseCSV(text) {
-  return text.trim().split(/\r?\n/).filter(r => r.trim()).map(row => {
-    const parts = row.split(',');
-    const name = parts[0].trim().replace(/^"|"$/g, '');
-    const price = parseFloat(parts[1]) || 0;
-    const maxQty = parts[2] && parts[2].trim() !== '' ? parseInt(parts[2]) : null;
-    return { name, price, maxQty };
-  }).filter(item => item.name);
+  return text
+    .trim()
+    .split(/\r?\n/)
+    .filter(r => r.trim())
+    .map(row => {
+      const parts = row.split(',');
+      const name     = (parts[0] || '').trim().replace(/^"|"$/g, '');
+      const price    = parseFloat((parts[1] || '').trim()) || 0;
+      const maxQty   = parts[2] && parts[2].trim() !== '' ? parseInt(parts[2].trim()) : null;
+      const category = parts[3] && parts[3].trim() !== '' ? parts[3].trim() : null;
+      return { name, price, maxQty, category };
+    })
+    .filter(item => item.name);
 }
 
 function showError(msg) {
@@ -74,9 +83,32 @@ function removeLine(i) {
 }
 
 function buildOptions(selected) {
-  return catalogItems.map((item, i) =>
-    `<option value="${i}"${i === selected ? ' selected' : ''}>${item.name}</option>`
+  const uncategorised = [];
+  const groups = {};
+  const groupOrder = [];
+
+  catalogItems.forEach((item, i) => {
+    if (item.category == null) {
+      uncategorised.push({ item, i });
+    } else {
+      if (!groups[item.category]) {
+        groups[item.category] = [];
+        groupOrder.push(item.category);
+      }
+      groups[item.category].push({ item, i });
+    }
+  });
+
+  const toOption = ({ item, i }) =>
+    `<option value="${i}"${i === selected ? ' selected' : ''}>${item.name}</option>`;
+
+  const uncategorisedHtml = uncategorised.map(toOption).join('');
+
+  const groupedHtml = groupOrder.map(cat =>
+    `<optgroup label="${cat}">${groups[cat].map(toOption).join('')}</optgroup>`
   ).join('');
+
+  return uncategorisedHtml + groupedHtml;
 }
 
 function updateQty(i, el) {
@@ -159,7 +191,7 @@ function updateTotals() {
 
   const outputBox = document.getElementById('output-box');
   if (resultLines.length) {
-     outputBox.value = '## Total: ' +  fmt(grand) + '\n-# ' + resultLines.join(', ');
+    outputBox.value = '## Total: ' + fmt(grand) + ' :coindc:\n-# ' + resultLines.join(', ');
   } else {
     outputBox.value = '';
   }
