@@ -6,7 +6,7 @@ const USE_CSV = true;
 const CSV_FILE = 'items.csv';
 
 const FALLBACK_ITEMS = [
-  { name: 'Coin', price: 1,},,
+  { name: 'Coin', price: 1,},
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 
